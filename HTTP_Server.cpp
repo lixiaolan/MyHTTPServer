@@ -47,7 +47,9 @@ bool HTTP_Request::ParseHeaderLine(string line) {
   // Get strings on either side of the : and return false if either is
   // ""
   string lhs = line.substr(0,colonLoc);
-  string rhs = line.substr(colonLoc+1);
+  string rhs = line.substr(colonLoc+2); // +2 to remove leading space
+  rhs.erase(rhs.find_last_not_of(" \n\r\t")+1); // Trim of any whitespace garbage
+
   if ((lhs == "")||(rhs == "")) return false;
 
   // Finally populate the headers map with the parsed strings and
@@ -68,7 +70,10 @@ void error(const char *msg) {
 string HTTP_Response::GetString() {
   string response;
   // Append Status Line
-  response += httpVersion + " " + statusCode + " " + reasonPhrase + "\n";
+  if ((httpVersion != "")&&
+      (statusCode != "")&&
+      (reasonPhrase != ""))
+    response += httpVersion + " " + statusCode + " " + reasonPhrase + "\n";
 
   // Add response headers
   for (auto & pair : headers) {
@@ -76,7 +81,7 @@ string HTTP_Response::GetString() {
   }
   
   // Add body
-  response += "\n" + body;
+  response += body;
 
   // Return response
   return response;
@@ -114,10 +119,15 @@ void TCPIP::Listen()  {
     error("ERROR on accept");
 }
 
-void TCPIP::Read(char* buffer, int size)  {
+string TCPIP::Read()  {
+
+  const int size = 16384;
+  string result = "";
+  char buffer[size];
   bzero(buffer,size+1);
-  n = read(newsockfd, buffer, size);
-  if (n < 0) error("ERROR reading from socket");
+  read(newsockfd, buffer, size-1);
+  result += buffer;
+  return result;
 }
 
 void TCPIP::Write(char* buffer, int size)  {
@@ -136,11 +146,9 @@ void TCPIP::Close()  {
 
 // HTTP_Server
 void HTTP_Server::Run() {
-  char readBuffer[1000];
-  string socket = "80";
   TCPIP connection;
   
-  connection.Init(const_cast<char*>(socket.c_str()));
+  connection.Init(socket);
   while (1) {
     // Create request and response objects
     HTTP_Request request = HTTP_Request();
@@ -148,8 +156,7 @@ void HTTP_Server::Run() {
 
     // Wait for a request the read and parse it
     connection.Listen();
-    connection.Read(readBuffer, 1000);
-    string requestString = readBuffer;
+    string requestString = connection.Read();
     request.Parse(requestString);
 
     // Loop through aviliable handlers until one of them handles the

@@ -18,6 +18,7 @@
 
 using namespace std;
 
+// Represents an HTTP Request
 class HTTP_Request {
  public:
   string method;
@@ -31,6 +32,7 @@ class HTTP_Request {
   bool ParseHeaderLine(string);
 };
 
+// Represents an HTTP Response
 class HTTP_Response {
  public:
   string httpVersion;
@@ -41,6 +43,7 @@ class HTTP_Response {
   string GetString();
 };
 
+// Encapsulationn of the TCP/IP communicationn
 class TCPIP  {
  private:
   int sockfd, newsockfd, portno;
@@ -50,23 +53,25 @@ class TCPIP  {
  public:
   int Init(char*);
   void Listen();
-  void Read(char*, int);
+  string Read();
   void Write(char*, int);
   void End();
   void Close();
 };
 
-/* Interface for handling HTTP_Request objects */
+// Interface for handling HTTP_Request objects
 class HTTP_Handler {
  public:
-  /* This method should handle the Request and populate the
-     repsonse. If the request was not handled, method should return
-     false */
+  // This method should handle the Request and populate the
+  // repsonse. If the request was not handled, method should return
+  // false
   virtual bool Process(HTTP_Request*, HTTP_Response*) = 0;
 };
 
+// The HTTP server
 class HTTP_Server {
  public:
+  char socket[5] = "80";
   vector<HTTP_Handler*> handlers;
   void Run();
 };

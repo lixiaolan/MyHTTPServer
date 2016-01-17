@@ -4,7 +4,7 @@ CC=g++ -std=c++11
 CFLAGS = -g -Wall
 
 #Define the rules in the dependancy tree:
-progs :  HTTP_Server.o HTTP_Example_Handlers.o
+progs :  HTTP_Server.o
 
 HTTP_Server.o : HTTP_Server.cpp HTTP_Server.hpp
 	$(CC) -fPIC -c -o $@ $< $(CFLAGS)
