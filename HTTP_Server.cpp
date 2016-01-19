@@ -123,10 +123,16 @@ string TCPIP::Read()  {
 
   const int size = 16384;
   string result = "";
+  string test = "";
   char buffer[size];
-  bzero(buffer,size+1);
-  read(newsockfd, buffer, size-1);
-  result += buffer;
+  while(1) {
+    bzero(buffer,size+1);
+    read(newsockfd, buffer, size-1);
+    test = "";
+    test += buffer;
+    if (test == "") break;
+    result += test;
+  }
   return result;
 }
 
