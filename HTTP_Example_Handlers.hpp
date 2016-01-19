@@ -26,7 +26,7 @@ class HTTP_File_Handler : public HTTP_Handler {
       return true;
     }
     
-    if (request->method == "PUT" || "POST") {
+    if ((request->method == "PUT") || (request->method == "POST")) {
       istringstream iss(request->body);
       string filePath = "." + request->requestURI;
       ofstream ofs(filePath);
@@ -37,6 +37,9 @@ class HTTP_File_Handler : public HTTP_Handler {
 
       // Make sure to have a non-zero response body
       response->body = "done!";
+      
+      // Close the file
+      ofs.close();
 
       return true;
     }
