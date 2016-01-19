@@ -121,17 +121,17 @@ void TCPIP::Listen()  {
 
 string TCPIP::Read()  {
 
-  const int size = 16384;
+  const int size = 256;
   string result = "";
   string test = "";
   char buffer[size];
+  size_t readInt;
+  
   while(1) {
     bzero(buffer,size+1);
-    read(newsockfd, buffer, size-1);
-    test = "";
-    test += buffer;
-    if (test == "") break;
-    result += test;
+    readInt = read(newsockfd, buffer, size-1);
+    if (readInt < 1) break;
+    result += buffer;
   }
   return result;
 }
