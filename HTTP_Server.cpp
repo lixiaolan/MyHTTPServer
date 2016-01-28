@@ -126,13 +126,16 @@ string TCPIP::Read()  {
   string test = "";
   char buffer[size];
   size_t readInt;
-  
   while(1) {
-    bzero(buffer,size+1);
     readInt = read(newsockfd, buffer, size-1);
-    if (readInt < 1) break;
+    buffer[readInt] = '\0';
+        
     result += buffer;
+    if (readInt < size-1) break;
+
   }
+  
+  
   return result;
 }
 
