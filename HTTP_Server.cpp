@@ -142,8 +142,6 @@ string TCPIP::Read()  {
     buffer[readInt] = '\0';
     result += buffer;
 
-    cout << "Read int: " << readInt << endl;
-
     // Handle less than expected input case
     if (readInt < size - 1) 
       break;
