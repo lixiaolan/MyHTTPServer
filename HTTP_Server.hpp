@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <string.h>
 #include <string>
 #include <sstream>
@@ -15,6 +16,7 @@
 #include <map>
 #include <vector>
 #include <fstream>
+#include <fcntl.h>
 
 using namespace std;
 
