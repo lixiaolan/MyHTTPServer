@@ -117,6 +117,11 @@ void TCPIP::Listen()  {
                      &clilen);
   if (newsockfd < 0) 
     error("ERROR on accept");
+  
+  // Make socket non-blocking
+  int x;
+  x = fcntl(newsockfd, F_GETFL, 0);
+  fcntl(newsockfd, F_SETFL, x | O_NONBLOCK);
 }
 
 string TCPIP::Read()  {
@@ -125,13 +130,23 @@ string TCPIP::Read()  {
   string result = "";
   string test = "";
   char buffer[size];
-  size_t readInt;
+  int readInt;
   while(1) {
     readInt = read(newsockfd, buffer, size-1);
+
+    // Handle error case
+    if (readInt == -1) {
+      continue;
+    }
+
     buffer[readInt] = '\0';
-        
     result += buffer;
-    if (readInt < size-1) break;
+
+    cout << "Read int: " << readInt << endl;
+
+    // Handle less than expected input case
+    if (readInt < size - 1) 
+      break;
 
   }
   
