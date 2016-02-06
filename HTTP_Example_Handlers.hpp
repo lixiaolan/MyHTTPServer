@@ -36,7 +36,7 @@ class HTTP_File_Handler : public HTTP_Handler {
       }
 
       // Make sure to have a non-zero response body
-      response->body = "done!";
+      response->body = "success";
       
       // Close the file
       ofs.close();
