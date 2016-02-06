@@ -136,7 +136,6 @@ string TCPIP::Read()  {
 
     // Handle error case
     if (readInt == -1) {
-      cout << errno << " : " << strerror(errno) << endl;
       continue;
     }
 
