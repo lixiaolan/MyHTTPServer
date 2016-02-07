@@ -6,21 +6,57 @@ using namespace std;
 bool HTTP_Request::Parse(string request) {
   istringstream iss(request);
   string line;
+  bool noMoreLines;
   
   // Get header line and send to ParseRequestLine
-  getline(iss, line);
-  if (!ParseRequestLine(line)) return false;
+  if (!getline(iss, line)) return false;
+  if (!ParseRequestLine(line)) {
+    cout << "Parse failed on request line: " + line << endl;
+    return false;
+  }
 
   // Loop on getting header lines and send each ParseHeaderLine
-  do {
-    getline(iss, line);
-  } while (ParseHeaderLine(line));
-    
+  while(1) {
+    if (!getline(iss,line)) {
+      cout << "Parse failed to get line during headers parsing" << endl;
+      return false;
+    }
+    if (!ParseHeaderLine(line)) break;
+  } 
+
+  // If we did not run out of lines than we must have failed a header
+  // line parse. If the offending line is not blank, we must have had
+  // a bad header line.
+  if ((line != "") && (line != "\r")) {
+    cout << "Parse failed on header line: >>>" + line + "<<<" << endl;
+    return false;
+  }
+
+  if (method == "GET") {
+    return true;
+  }
+      
   // Finally grab rest of content and assign to body.
   while (getline(iss, line)) {
+    cout << "TEST TWO" << endl;
     body += line + "\n";
   }
 
+  // If method is POST or PUT the body content must be at least the
+  // length specified in the "Content-Length" header
+  if ((method == "POST") || (method == "PUT")) {
+    int contentLength;
+    istringstream iss(headers["Content-Length"]);
+    iss >> contentLength;
+    
+    if (body.length() < contentLength) {
+      cout << "Parse failed on content length" << endl;
+      cout << "body.length()  : " << body.length() << endl;
+      cout << "content length : " << contentLength << endl;
+      return false;
+    }
+  }
+    
   return true;
 }
 
@@ -118,10 +154,10 @@ void TCPIP::Listen()  {
   if (newsockfd < 0) 
     error("ERROR on accept");
   
-  // Make socket non-blocking
-  int x;
-  x = fcntl(newsockfd, F_GETFL, 0);
-  fcntl(newsockfd, F_SETFL, x | O_NONBLOCK);
+  // // Make socket non-blocking
+  // int x;
+  // x = fcntl(newsockfd, F_GETFL, 0);
+  // fcntl(newsockfd, F_SETFL, x | O_NONBLOCK);
 }
 
 string TCPIP::Read()  {
@@ -135,19 +171,19 @@ string TCPIP::Read()  {
     readInt = read(newsockfd, buffer, size-1);
 
     // Handle error case
-    if (readInt == -1) {
-      continue;
+    if (readInt <= 0) {
+      cout << "ERROR or empty read!" << endl;
+      break;
     }
 
     buffer[readInt] = '\0';
     result += buffer;
 
-    // Handle less than expected input case
-    if (readInt < size - 1) 
-      break;
-
+    cout << "RESULT: " + result << endl;
+    
+    HTTP_Request request;
+    if (request.Parse(result)) break;
   }
-  
   
   return result;
 }
