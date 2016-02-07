@@ -6,7 +6,13 @@ using namespace std;
 bool HTTP_Request::Parse(string request) {
   istringstream iss(request);
   string line;
-  bool noMoreLines;
+
+  // Clear out all fields:
+  method = "";
+  requestURI = "";
+  httpVersion = "";
+  headers = map<string, string>();
+  body = "";
   
   // Get header line and send to ParseRequestLine
   if (!getline(iss, line)) return false;
@@ -45,7 +51,7 @@ bool HTTP_Request::Parse(string request) {
   // If method is POST or PUT the body content must be at least the
   // length specified in the "Content-Length" header
   if ((method == "POST") || (method == "PUT")) {
-    int contentLength;
+    unsigned contentLength;
     istringstream iss(headers["Content-Length"]);
     iss >> contentLength;
     
@@ -161,32 +167,22 @@ void TCPIP::Listen()  {
   // fcntl(newsockfd, F_SETFL, x | O_NONBLOCK);
 }
 
-string TCPIP::Read()  {
+int TCPIP::Read(const int size, string &result)  {
 
-  const int size = 256;
-  string result = "";
-  string test = "";
   char buffer[size];
   int readInt;
-  while(1) {
-    readInt = read(newsockfd, buffer, size-1);
+  readInt = read(newsockfd, buffer, size-1);
 
-    // Handle error case
-    if (readInt <= 0) {
-      cout << "ERROR or empty read!" << endl;
-      break;
-    }
-
-    buffer[readInt] = '\0';
-    result += buffer;
-
-    cout << "RESULT: " + result << endl;
-    
-    HTTP_Request request;
-    if (request.Parse(result)) break;
+  // Handle error case
+  if (readInt <= 0) {
+    cout << "ERROR or empty read!" << endl;
+    return readInt;
   }
-  
-  return result;
+
+  buffer[readInt] = '\0';
+  result += buffer;
+
+  return readInt;
 }
 
 void TCPIP::Write(char* buffer, int size)  {
@@ -203,9 +199,27 @@ void TCPIP::Close()  {
   close(newsockfd);
 }
 
+bool HTTP_Server::TryGetRequest(HTTP_Request& request) {
+  
+  const int size = 256;
+  string result = "";
+  int readInt;
+  while(1) {
+    readInt = connection.Read(size, result);
+
+    // Handle error case
+    if (readInt <= 0) {
+      return false;
+    }
+    
+    if (request.Parse(result)) break;
+  }
+  
+  return true;
+}
+
 // HTTP_Server
 void HTTP_Server::Run() {
-  TCPIP connection;
   
   connection.Init(socket);
   while (1) {
@@ -215,9 +229,8 @@ void HTTP_Server::Run() {
 
     // Wait for a request the read and parse it
     connection.Listen();
-    string requestString = connection.Read();
-    request.Parse(requestString);
-
+    if (!TryGetRequest(request)) continue;
+    
     // Loop through aviliable handlers until one of them handles the
     // request
     for (HTTP_Handler * handler : handlers)

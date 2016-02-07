@@ -55,7 +55,7 @@ class TCPIP  {
  public:
   int Init(char*);
   void Listen();
-  string Read();
+  int Read(const int, string&);
   void Write(char*, int);
   void End();
   void Close();
@@ -72,9 +72,12 @@ class HTTP_Handler {
 
 // The HTTP server
 class HTTP_Server {
+  TCPIP connection;
  public:
   char socket[5] = "80";
   vector<HTTP_Handler*> handlers;
+
+  bool TryGetRequest(HTTP_Request&);
   void Run();
 };
 
