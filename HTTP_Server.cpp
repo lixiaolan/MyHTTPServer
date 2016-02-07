@@ -83,6 +83,7 @@ bool HTTP_Request::ParseHeaderLine(string line) {
   // Get strings on either side of the : and return false if either is
   // ""
   string lhs = line.substr(0,colonLoc);
+  if (line.size() <= colonLoc + 2) return false;
   string rhs = line.substr(colonLoc+2); // +2 to remove leading space
   rhs.erase(rhs.find_last_not_of(" \n\r\t")+1); // Trim of any whitespace garbage
 
