@@ -187,7 +187,7 @@ int TCPIP::Read(const int size, string &result)  {
 
 void TCPIP::Write(char* buffer, int size)  {
   n = write(newsockfd, buffer, size);
-  if (n < 0) error("ERROR writing to socket");
+  if (n < 0) cout << "ERROR writing to socket" << endl;
 }
 
 void TCPIP::End() {
