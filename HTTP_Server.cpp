@@ -167,32 +167,60 @@ void TCPIP::Listen()  {
     error("ERROR on accept");
   
   // // Make socket non-blocking
-  // int x;
-  // x = fcntl(newsockfd, F_GETFL, 0);
-  // fcntl(newsockfd, F_SETFL, x | O_NONBLOCK);
+  int x;
+  x = fcntl(newsockfd, F_GETFL, 0);
+  fcntl(newsockfd, F_SETFL, x | O_NONBLOCK);
 }
 
 int TCPIP::Read(const int size, string &result)  {
 
   char buffer[size];
   int readInt;
-  readInt = read(newsockfd, buffer, size-1);
+  time_t t1, t2;
+  double seconds;
+  time(&t1);
+  
+  while (1) {
+    time(&t2);
+    seconds = difftime(t2, t1);
+    if (seconds > 0) break;
 
-  // Handle error case
-  if (readInt <= 0) {
-    cout << "ERROR or empty read!" << endl;
-    return readInt;
+    cout << "Before inner read" << endl;
+    readInt = read(newsockfd, buffer, size-1);
+    cout << "After inner read: " << readInt << endl;
+    
+    // Handle error case
+    if ((readInt <= 0) || (readInt >= size)) {
+      cout << "ERROR or empty read! " << seconds << endl;
+      continue;
+    }
+    
+    buffer[readInt] = '\0';
+    result += buffer;
+    
+    break;
   }
-
-  buffer[readInt] = '\0';
-  result += buffer;
 
   return readInt;
 }
 
 void TCPIP::Write(char* buffer, int size)  {
-  n = write(newsockfd, buffer, size);
-  if (n < 0) cout << "ERROR writing to socket" << endl;
+  int writeInt;
+  time_t t1, t2;
+  double seconds;
+  time(&t1);
+  
+  while (1) {
+    time(&t2);
+    seconds = difftime(t2, t1);
+    if (seconds > 0) break;
+
+    writeInt = write(newsockfd, buffer, size);
+    if (writeInt > 0) break;
+
+    cout << "No data written or error" << endl;
+  }
+
 }
 
 void TCPIP::End() {

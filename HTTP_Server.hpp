@@ -17,6 +17,7 @@
 #include <vector>
 #include <fstream>
 #include <fcntl.h>
+#include <time.h>
 
 using namespace std;
 
