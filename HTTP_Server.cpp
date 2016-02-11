@@ -71,11 +71,15 @@ bool HTTP_Request::Parse(string request) {
 // by the protocol). However, if there are erroneous pieces in the
 // request line, they will be ignored.
 bool HTTP_Request::ParseRequestLine(string line) {
+  cout << "in parse request line" << endl;
   istringstream iss(line);
 
-  if ((iss >> method) && (iss >> requestURI) && (iss >> httpVersion))
+  if ((iss >> method) && (iss >> requestURI) && (iss >> httpVersion)) {
+    cout << "exit parse request line true" << endl;
     return true;
+    }
 
+  cout << "exit parse request line false" << endl;
   return false;
 }
 
@@ -205,14 +209,18 @@ bool HTTP_Server::TryGetRequest(HTTP_Request& request) {
   string result = "";
   int readInt;
   while(1) {
+    cout << "Before Read" << endl;
     readInt = connection.Read(size, result);
-
+    cout << "After Read" << endl;
+    
     // Handle error case
     if (readInt <= 0) {
       return false;
     }
     
+    cout << "before parse" << endl;
     if (request.Parse(result)) break;
+    cout << "after parse" << endl;
   }
   
   return true;
@@ -228,17 +236,23 @@ void HTTP_Server::Run() {
     HTTP_Response response;
 
     // Wait for a request the read and parse it
+    cout << "Before listen" << endl;
     connection.Listen();
+    cout << "After listen" << endl;
     if (!TryGetRequest(request)) continue;
     
     // Loop through aviliable handlers until one of them handles the
     // request
+    cout << "Handling" << endl;
     for (HTTP_Handler * handler : handlers)
       if (handler->Process(&request, &response)) break;
+    cout << "Done handling" << endl;
     
     // Send string back to client and end the connection.
     string responseStr = response.GetString();
+    cout << "before writing" << endl;
     connection.Write(const_cast<char *>(responseStr.c_str()), responseStr.length());
+    cout << "after writing" << endl;
     connection.End();
   }
     
