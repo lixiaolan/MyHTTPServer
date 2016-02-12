@@ -166,61 +166,65 @@ void TCPIP::Listen()  {
   if (newsockfd < 0) 
     error("ERROR on accept");
   
-  // // Make socket non-blocking
-  int x;
-  x = fcntl(newsockfd, F_GETFL, 0);
-  fcntl(newsockfd, F_SETFL, x | O_NONBLOCK);
+  // Make socket non-blocking
+  // int x;
+  // x = fcntl(newsockfd, F_GETFL, 0);
+  // fcntl(newsockfd, F_SETFL, x | O_NONBLOCK);
 }
 
 int TCPIP::Read(const int size, string &result)  {
 
   char buffer[size];
-  int readInt;
-  time_t t1, t2;
-  double seconds;
-  time(&t1);
-  
-  while (1) {
-    time(&t2);
-    seconds = difftime(t2, t1);
-    if (seconds > 0) break;
+  int readInt = 0;
+  fd_set rfds;
+  struct timeval tv;
+  int retval;
 
-    cout << "Before inner read" << endl;
+  FD_ZERO(&rfds);
+  FD_SET(newsockfd, &rfds);
+  tv.tv_sec = 5;
+  tv.tv_usec = 0;
+
+  retval = select(newsockfd+1, &rfds, NULL, NULL, &tv);
+
+  if (retval == -1) {
+    cout << "READ ERROR!!!!!!!!!" << endl;
+  }
+  else if (retval) {
     readInt = read(newsockfd, buffer, size-1);
-    cout << "After inner read: " << readInt << endl;
-    
-    // Handle error case
-    if ((readInt <= 0) || (readInt >= size)) {
-      cout << "ERROR or empty read! " << seconds << endl;
-      continue;
-    }
-    
-    buffer[readInt] = '\0';
-    result += buffer;
-    
-    break;
+  }
+  else {
+    cout << "Read Socket timed out :(" << endl;
   }
 
+  buffer[readInt] = '\0';
+  result += buffer;
+  
   return readInt;
-}
+}    
 
 void TCPIP::Write(char* buffer, int size)  {
-  int writeInt;
-  time_t t1, t2;
-  double seconds;
-  time(&t1);
-  
-  while (1) {
-    time(&t2);
-    seconds = difftime(t2, t1);
-    if (seconds > 0) break;
+  int writeInt = 0;
+  fd_set wfds;
+  struct timeval tv;
+  int retval;
 
-    writeInt = write(newsockfd, buffer, size);
-    if (writeInt > 0) break;
+  FD_ZERO(&wfds);
+  FD_SET(newsockfd, &wfds);
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
 
-    cout << "No data written or error" << endl;
+  retval = select(newsockfd+1, NULL, &wfds, NULL, &tv);
+
+  if (retval == -1) {
+    cout << "WRITE ERROR!!!!!!!!!" << endl;
   }
-
+  else if (retval) {
+    writeInt = write(newsockfd, buffer, size);
+  }
+  else {
+    cout << "Write Socket timed out :(" << endl;
+  }
 }
 
 void TCPIP::End() {
