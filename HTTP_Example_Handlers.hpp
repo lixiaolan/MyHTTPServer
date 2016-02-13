@@ -9,7 +9,7 @@ class HTTP_File_Handler : public HTTP_Handler {
   bool Process(HTTP_Request* request, HTTP_Response* response) {
     if (request->method == "GET") {
     
-      string file = "." + request->requestURI;
+      string file = "." + request->URI;
       string line;
       ifstream myfile(file);
 
@@ -28,7 +28,7 @@ class HTTP_File_Handler : public HTTP_Handler {
     
     if ((request->method == "PUT") || (request->method == "POST")) {
       istringstream iss(request->body);
-      string filePath = "." + request->requestURI;
+      string filePath = "." + request->URI;
       ofstream ofs(filePath);
       string line;
       while (getline(iss,line)) {
@@ -54,7 +54,7 @@ class PrintInfoHandler : public HTTP_Handler {
   bool Process(HTTP_Request* request, HTTP_Response* response) {
       
     cout << "method: " << request->method << endl;
-    cout << "requestURI: " << request->requestURI << endl;
+    cout << "URI: " << request->URI << endl;
     cout << "httpVersion: " << request->httpVersion << endl;
 
     for (auto p : request->headers) {

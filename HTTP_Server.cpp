@@ -9,7 +9,7 @@ bool HTTP_Request::Parse(string request) {
 
   // Clear out all fields:
   method = "";
-  requestURI = "";
+  URI = "";
   httpVersion = "";
   headers = map<string, string>();
   body = "";
@@ -17,15 +17,12 @@ bool HTTP_Request::Parse(string request) {
   // Get header line and send to ParseRequestLine
   if (!getline(iss, line)) return false;
   if (!ParseRequestLine(line)) {
-    cout << "Parse failed on request line: " + line << endl;
     return false;
   }
 
   // Loop on getting header lines and send each ParseHeaderLine
   while(1) {
-    cout << "TEST ONE" << endl;
     if (!getline(iss,line)) {
-      cout << "Parse failed to get line during headers parsing" << endl;
       return false;
     }
     if (!ParseHeaderLine(line)) break;
@@ -35,7 +32,6 @@ bool HTTP_Request::Parse(string request) {
   // line parse. If the offending line is not blank, we must have had
   // a bad header line.
   if ((line != "") && (line != "\r")) {
-    cout << "Parse failed on header line: >>>" + line + "<<<" << endl;
     return false;
   }
 
@@ -45,7 +41,6 @@ bool HTTP_Request::Parse(string request) {
       
   // Finally grab rest of content and assign to body.
   while (getline(iss, line)) {
-    cout << "TEST TWO" << endl;
     body += line + "\n";
   }
 
@@ -57,9 +52,6 @@ bool HTTP_Request::Parse(string request) {
     iss >> contentLength;
     
     if (body.length() < contentLength) {
-      cout << "Parse failed on content length" << endl;
-      cout << "body.length()  : " << body.length() << endl;
-      cout << "content length : " << contentLength << endl;
       return false;
     }
   }
@@ -72,15 +64,12 @@ bool HTTP_Request::Parse(string request) {
 // by the protocol). However, if there are erroneous pieces in the
 // request line, they will be ignored.
 bool HTTP_Request::ParseRequestLine(string line) {
-  cout << "in parse request line" << endl;
   istringstream iss(line);
 
-  if ((iss >> method) && (iss >> requestURI) && (iss >> httpVersion)) {
-    cout << "exit parse request line true" << endl;
+  if ((iss >> method) && (iss >> URI) && (iss >> httpVersion)) {
     return true;
-    }
+  }
 
-  cout << "exit parse request line false" << endl;
   return false;
 }
 
@@ -117,22 +106,22 @@ void error(const char *msg) {
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec6.html#sec6
 string HTTP_Response::GetString() {
   string response;
+  ostringstream oss;
   // Append Status Line
-  if ((httpVersion != "")&&
-      (statusCode != "")&&
-      (reasonPhrase != ""))
-    response += httpVersion + " " + statusCode + " " + reasonPhrase + "\n";
+  oss <<  httpVersion << " " << statusCode << " " << reasonPhrase << "\r\n";
 
   // Add response headers
   for (auto & pair : headers) {
-    response += pair.first + ": " + pair.second + "\n";
+    oss << pair.first << ": " << pair.second << "\r\n";
   }
+
+  oss << "\r\n";
   
   // Add body
-  response += body;
+  oss << body;
 
   // Return response
-  return response;
+  return oss.str();
 }
 
 // TCPIP:
@@ -164,16 +153,10 @@ void TCPIP::Listen()  {
                      (struct sockaddr *) &cli_addr, 
                      &clilen);
   if (newsockfd < 0) 
-    error("ERROR on accept");
-  
-  // Make socket non-blocking
-  // int x;
-  // x = fcntl(newsockfd, F_GETFL, 0);
-  // fcntl(newsockfd, F_SETFL, x | O_NONBLOCK);
+    error("ERROR on accept");  
 }
 
 int TCPIP::Read(const int size, string &result)  {
-
   char buffer[size];
   int readInt = 0;
   fd_set rfds;
@@ -188,13 +171,13 @@ int TCPIP::Read(const int size, string &result)  {
   retval = select(newsockfd+1, &rfds, NULL, NULL, &tv);
 
   if (retval == -1) {
-    cout << "READ ERROR!!!!!!!!!" << endl;
+    // Error
   }
   else if (retval) {
     readInt = read(newsockfd, buffer, size-1);
   }
   else {
-    cout << "Read Socket timed out :(" << endl;
+    // Timed out
   }
 
   buffer[readInt] = '\0';
@@ -217,13 +200,13 @@ void TCPIP::Write(char* buffer, int size)  {
   retval = select(newsockfd+1, NULL, &wfds, NULL, &tv);
 
   if (retval == -1) {
-    cout << "WRITE ERROR!!!!!!!!!" << endl;
+    // Error
   }
   else if (retval) {
     writeInt = write(newsockfd, buffer, size);
   }
   else {
-    cout << "Write Socket timed out :(" << endl;
+    // timed out
   }
 }
 
@@ -242,18 +225,14 @@ bool HTTP_Server::TryGetRequest(HTTP_Request& request) {
   string result = "";
   int readInt;
   while(1) {
-    cout << "Before Read" << endl;
     readInt = connection.Read(size, result);
-    cout << "After Read" << endl;
     
     // Handle error case
     if (readInt <= 0) {
       return false;
     }
     
-    cout << "before parse" << endl;
     if (request.Parse(result)) break;
-    cout << "after parse" << endl;
   }
   
   return true;
@@ -269,23 +248,19 @@ void HTTP_Server::Run() {
     HTTP_Response response;
 
     // Wait for a request the read and parse it
-    cout << "Before listen" << endl;
     connection.Listen();
-    cout << "After listen" << endl;
     if (!TryGetRequest(request)) continue;
+
+    cout << request.body << endl;
     
     // Loop through aviliable handlers until one of them handles the
     // request
-    cout << "Handling" << endl;
     for (HTTP_Handler * handler : handlers)
       if (handler->Process(&request, &response)) break;
-    cout << "Done handling" << endl;
     
     // Send string back to client and end the connection.
     string responseStr = response.GetString();
-    cout << "before writing" << endl;
     connection.Write(const_cast<char *>(responseStr.c_str()), responseStr.length());
-    cout << "after writing" << endl;
     connection.End();
   }
     

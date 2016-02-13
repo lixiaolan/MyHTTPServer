@@ -25,7 +25,7 @@ using namespace std;
 class HTTP_Request {
  public:
   string method;
-  string requestURI;
+  string URI;
   string httpVersion;
   map< string, string > headers;
   string body;  
