@@ -21,16 +21,28 @@
 
 using namespace std;
 
+enum ParseState {
+  ON_REQUEST_LINE,
+  ON_HEADERS,
+  ON_BODY,
+  COMPLETE,
+  ERROR,
+}
+
 // Represents an HTTP Request
 class HTTP_Request {
  public:
   string method;
   string URI;
   string httpVersion;
-  map< string, string > headers;
+  map<string, string> headers;
   string body;  
   bool Parse(string);
+  ParseState getParseState();
  private:
+  int contentLength;
+  string bufferString;
+  ParseState state;
   bool ParseRequestLine(string);
   bool ParseHeaderLine(string);
 };

@@ -4,15 +4,26 @@ using namespace std;
 
 // HTTP_Request
 bool HTTP_Request::Parse(string request) {
-  istringstream iss(request);
   string line;
 
-  // Clear out all fields:
-  method = "";
-  URI = "";
-  httpVersion = "";
-  headers = map<string, string>();
-  body = "";
+  // Attach the buffer string to the front of the request and clear
+  // the buffer
+  request = buffer + request;
+  buffer = "";
+
+  istringstream iss(request);
+  
+  // Check the state of the parsing
+  switch (state) {
+  case ParseState.ON_REQUEST_LINE:
+    return ParseRequestLine(iss);
+  case ParseState.ON_HEADERS:
+    return ParseHeaderLines(iss);
+  case ParseState.ON_BODY:
+    return ParseBody(iss);
+  case ParseState.COMPLETE:
+  case ParseState.ERROR:
+  }
   
   // Get header line and send to ParseRequestLine
   if (!getline(iss, line)) return false;
@@ -57,6 +68,23 @@ bool HTTP_Request::Parse(string request) {
   }
     
   return true;
+}
+
+bool HTTP_Request::ParseRequestComponent(iss) {
+
+  switch (state) {
+  case ParseState.ON_REQUEST_LINE:
+    return ParseRequestLine(iss);
+  case ParseState.ON_HEADERS:
+    return ParseHeaderLines(iss);
+  case ParseState.ON_BODY:
+    return ParseBody(iss);
+  case ParseState.COMPLETE:
+    return false;
+  case ParseState.ERROR:
+    return false;
+  }
+  return false;
 }
 
 // Parses an HTML request line. This assumes the request line pieces
