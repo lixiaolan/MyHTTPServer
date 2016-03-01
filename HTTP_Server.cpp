@@ -2,125 +2,152 @@
 
 using namespace std;
 
-// HTTP_Request
-bool HTTP_Request::Parse(string request) {
-  string line;
-
-  // Attach the buffer string to the front of the request and clear
-  // the buffer
-  request = buffer + request;
-  buffer = "";
-
-  istringstream iss(request);
-  
-  // Check the state of the parsing
-  switch (state) {
-  case ParseState.ON_REQUEST_LINE:
-    return ParseRequestLine(iss);
-  case ParseState.ON_HEADERS:
-    return ParseHeaderLines(iss);
-  case ParseState.ON_BODY:
-    return ParseBody(iss);
-  case ParseState.COMPLETE:
-  case ParseState.ERROR:
-  }
-  
-  // Get header line and send to ParseRequestLine
-  if (!getline(iss, line)) return false;
-  if (!ParseRequestLine(line)) {
-    return false;
-  }
-
-  // Loop on getting header lines and send each ParseHeaderLine
-  while(1) {
-    if (!getline(iss,line)) {
-      return false;
-    }
-    if (!ParseHeaderLine(line)) break;
-  } 
-
-  // If we did not run out of lines than we must have failed a header
-  // line parse. If the offending line is not blank, we must have had
-  // a bad header line.
-  if ((line != "") && (line != "\r")) {
-    return false;
-  }
-
-  if (method == "GET") {
-    return true;
-  }
-      
-  // Finally grab rest of content and assign to body.
-  while (getline(iss, line)) {
-    body += line + "\n";
-  }
-
-  // If method is POST or PUT the body content must be at least the
-  // length specified in the "Content-Length" header
-  if ((method == "POST") || (method == "PUT")) {
-    unsigned contentLength;
-    istringstream iss(headers["Content-Length"]);
-    iss >> contentLength;
-    
-    if (body.length() < contentLength) {
-      return false;
-    }
-  }
-    
-  return true;
+ParseState HTTP_Request::getParseState() {
+  return state;
 }
 
-bool HTTP_Request::ParseRequestComponent(iss) {
+// HTTP_Request
+void HTTP_Request::Parse(string request) {
+
+  // Validate request string and state before continuing
+  if ((request == "") ||
+      (state == ParseState::COMPLETE) ||
+      (state == ParseState::ERROR))
+    return;
+
+  // Strip of content that does not have an end line
+  size_t lastNewLine = request.find_last_of("\n");
+  if (lastNewLine == string::npos) {
+    bufferString = request;
+    return;
+  }
+
+  // Add bufferString to request and store new bufferString
+  string tempBufferString = request.substr(lastNewLine+1);
+  request = bufferString + request.substr(0, lastNewLine+1);
+  bufferString = tempBufferString;
+  
+  // Parse lines until there are no more or parsing is complete or
+  // there is an error
+  istringstream iss(request);
+  string line;  
+  while ((state != ParseState::COMPLETE) && (state != ParseState::ERROR) && (getline(iss, line))) {
+
+    ParseLine(line);
+    switch (state) {
+    case ParseState::ON_REQUEST_LINE:
+      break;
+    case ParseState::ON_HEADERS:
+      break;    
+    case ParseState::ON_BODY:
+      break;
+    case ParseState::COMPLETE:
+      break;
+    case ParseState::ERROR:
+      break;
+    } 
+  }
+  
+  return;
+}
+
+void HTTP_Request::ParseLine(string line) {
 
   switch (state) {
-  case ParseState.ON_REQUEST_LINE:
-    return ParseRequestLine(iss);
-  case ParseState.ON_HEADERS:
-    return ParseHeaderLines(iss);
-  case ParseState.ON_BODY:
-    return ParseBody(iss);
-  case ParseState.COMPLETE:
-    return false;
-  case ParseState.ERROR:
-    return false;
+  case ParseState::ON_REQUEST_LINE:
+    ParseRequestLine(line);
+    break;
+  case ParseState::ON_HEADERS:
+    ParseHeaderLine(line);
+    break;    
+  case ParseState::ON_BODY:
+    ParseBodyLine(line);
+    break;
+  case ParseState::COMPLETE:
+    break;
+  case ParseState::ERROR:
+    break;
   }
-  return false;
+  return;
 }
 
 // Parses an HTML request line. This assumes the request line pieces
 // are space separated and all three are present (these are guaranteed
 // by the protocol). However, if there are erroneous pieces in the
 // request line, they will be ignored.
-bool HTTP_Request::ParseRequestLine(string line) {
+void HTTP_Request::ParseRequestLine(string line) {
   istringstream iss(line);
 
   if ((iss >> method) && (iss >> URI) && (iss >> httpVersion)) {
-    return true;
+    state = ParseState::ON_HEADERS;
+    return;
   }
 
-  return false;
+  state = ParseState::ERROR;
+  return;
 }
 
 // Reads a line of the format <name> : <attribute> and populates the
 // headers map with this information.
-bool HTTP_Request::ParseHeaderLine(string line) {
+void HTTP_Request::ParseHeaderLine(string line) {
+  // Handle the blank line case
+  if (line == "\r") {
+
+    // Check if content length exists
+    if (headers.find("Content-Length") != headers.end()) {
+      istringstream iss(headers["Content-Length"]);
+      iss >> contentLength;
+      state = ParseState::ON_BODY;
+    }
+
+    // If no content length, stop parsing is done.
+    else {
+      state = ParseState::COMPLETE;
+    }
+
+    return;
+  }
+
   // Find location of the : and return false if not found.
   size_t colonLoc = line.find(":");
-  if (colonLoc == string::npos) return false;
+  if (colonLoc == string::npos) {
+    state = ParseState::ERROR;
+    return;
+  }
 
   // Get strings on either side of the : and return false if either is
   // ""
   string lhs = line.substr(0,colonLoc);
-  if (line.size() <= colonLoc + 3) return false;
+  if (line.size() <= colonLoc + 3) {
+    state = ParseState::ERROR;
+    return;
+  }
+     
   string rhs = line.substr(colonLoc+2); // +2 to remove leading space
   rhs.erase(rhs.find_last_not_of(" \n\r\t")+1); // Trim of any whitespace garbage
 
-  if ((lhs == "")||(rhs == "")) return false;
+  if ((lhs == "")||(rhs == "")) {
+    state = ParseState::ERROR;
+    return;
+  }
 
   // Finally populate the headers map with the parsed strings and
   // return true to indicate success.
   headers[lhs] = rhs;
-  return true;
+  return;
+}
+
+void HTTP_Request::ParseBodyLine(string line) {
+  // Finally grab rest of content and assign to body.
+  body += line + "\n";
+
+  // If our content is long enough, we are done parsing
+  if (body.size() + bufferString.size() >= contentLength) {
+    body += bufferString;
+    state = ParseState::COMPLETE;
+  }
+
+  return;
 }
 
 void error(const char *msg) {
@@ -215,7 +242,6 @@ int TCPIP::Read(const int size, string &result)  {
 }    
 
 void TCPIP::Write(char* buffer, int size)  {
-  int writeInt = 0;
   fd_set wfds;
   struct timeval tv;
   int retval;
@@ -231,7 +257,7 @@ void TCPIP::Write(char* buffer, int size)  {
     // Error
   }
   else if (retval) {
-    writeInt = write(newsockfd, buffer, size);
+    write(newsockfd, buffer, size);
   }
   else {
     // timed out
@@ -253,14 +279,17 @@ bool HTTP_Server::TryGetRequest(HTTP_Request& request) {
   string result = "";
   int readInt;
   while(1) {
+    result = "";
     readInt = connection.Read(size, result);
     
     // Handle error case
     if (readInt <= 0) {
       return false;
     }
-    
-    if (request.Parse(result)) break;
+
+    request.Parse(result);
+    ParseState state = request.getParseState();
+  if ((state == ParseState::COMPLETE) || (state == ParseState::ERROR)) break;
   }
   
   return true;
@@ -279,8 +308,6 @@ void HTTP_Server::Run() {
     connection.Listen();
     if (!TryGetRequest(request)) continue;
 
-    cout << request.body << endl;
-    
     // Loop through aviliable handlers until one of them handles the
     // request
     for (HTTP_Handler * handler : handlers)
