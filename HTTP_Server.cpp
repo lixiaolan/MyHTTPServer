@@ -15,37 +15,47 @@ void HTTP_Request::Parse(string request) {
       (state == ParseState::ERROR))
     return;
 
-  // Strip of content that does not have an end line
-  size_t lastNewLine = request.find_last_of("\n");
-  if (lastNewLine == string::npos) {
-    bufferString = request;
-    return;
-  }
+  // // Strip of content that does not have an end line
+  // size_t lastNewLine = request.find_last_of("\n");
+  // if (lastNewLine == string::npos) {
+  //   bufferString = request;
+  //   return;
+  // }
 
   // Add bufferString to request and store new bufferString
-  string tempBufferString = request.substr(lastNewLine+1);
-  request = bufferString + request.substr(0, lastNewLine+1);
-  bufferString = tempBufferString;
+  request = bufferString + request;
+  bufferString = "";
+
+  // Before we start, check to see if we have all the content
+  // already. If so, simply append to body, update the state and
+  // return early.
+  // if ((state == ParseState::ON_BODY) &&
+  //     (body.size() + bufferString.size() >= contentLength)) {
+  //   body += bufferString;
+  //   state = ParseState::COMPLETE;
+  //   return;
+  // }
   
   // Parse lines until there are no more or parsing is complete or
   // there is an error
   istringstream iss(request);
   string line;  
-  while ((state != ParseState::COMPLETE) && (state != ParseState::ERROR) && (getline(iss, line))) {
+  while ((state != ParseState::COMPLETE) && (state != ParseState::ERROR)) {
+
+    // If we are ON_BODY, get all remaining chars, append to body and
+    // return.
+    if (state == ParseState::ON_BODY) {
+      if (!getline(iss, line, '\0')) return;
+    }
+    else {
+      if (!getline(iss, line, '\n')) return;
+      if (line.back() != '\r') {
+        bufferString = line;
+        return;
+      }
+    }
 
     ParseLine(line);
-    switch (state) {
-    case ParseState::ON_REQUEST_LINE:
-      break;
-    case ParseState::ON_HEADERS:
-      break;    
-    case ParseState::ON_BODY:
-      break;
-    case ParseState::COMPLETE:
-      break;
-    case ParseState::ERROR:
-      break;
-    } 
   }
   
   return;
@@ -139,11 +149,10 @@ void HTTP_Request::ParseHeaderLine(string line) {
 
 void HTTP_Request::ParseBodyLine(string line) {
   // Finally grab rest of content and assign to body.
-  body += line + "\n";
+  body += line;
 
   // If our content is long enough, we are done parsing
-  if (body.size() + bufferString.size() >= contentLength) {
-    body += bufferString;
+  if (body.size() >= contentLength) {
     state = ParseState::COMPLETE;
   }
 
@@ -307,7 +316,7 @@ void HTTP_Server::Run() {
     // Wait for a request the read and parse it
     connection.Listen();
     if (!TryGetRequest(request)) continue;
-
+    
     // Loop through aviliable handlers until one of them handles the
     // request
     for (HTTP_Handler * handler : handlers)
