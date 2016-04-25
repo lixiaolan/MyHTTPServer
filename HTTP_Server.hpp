@@ -21,6 +21,8 @@
 
 using namespace std;
 
+// Represents the internal state of the an HTTP_Request while parsing
+// from a string.
 enum class ParseState {
   ON_REQUEST_LINE,
   ON_HEADERS,
@@ -29,14 +31,18 @@ enum class ParseState {
   ERROR,
 };
 
-// Represents an HTTP Request
+// Represents an HTTP Request. Has the required parts as per the HTTP
+// protocol. The object has an internal state of type "ParseState"
+// which is used during incremental parsing of a request string via
+// the "Parse" method. The internal state of the the object can be
+// viewed using the getParseState.
 class HTTP_Request {
  public:
   string method;
   string URI;
   string httpVersion;
   map<string, string> headers;
-  string body;  
+  string body;
   void Parse(string);
   ParseState getParseState();
  private:
@@ -49,7 +55,9 @@ class HTTP_Request {
   void ParseBodyLine(string);
 };
 
-// Represents an HTTP Response
+// Represents an HTTP Response. Has the requred parts as per the HTTP
+// protocol and can be serialized to a string using the GetString
+// method.
 class HTTP_Response {
  public:
   string httpVersion;
@@ -60,8 +68,10 @@ class HTTP_Response {
   string GetString();
 };
 
-// Encapsulationn of the TCP/IP communicationn
-class TCPIP  {
+// Encapsulationn of the TCP/IP communicationn. Note: I only created this
+// class because I was uncomfortable (at the time) with the basic IPC
+// libraries used herein. Perhaps I will remove this in the future.
+class TCPIP {
  private:
   int sockfd, newsockfd, portno;
   socklen_t clilen;
@@ -76,7 +86,8 @@ class TCPIP  {
   void Close();
 };
 
-// Interface for handling HTTP_Request objects
+// Interface for handling HTTP_Request objects. Each handler must
+// supply a "Process" method.
 class HTTP_Handler {
  public:
   // This method should handle the Request and populate the
@@ -85,17 +96,20 @@ class HTTP_Handler {
   virtual bool Process(HTTP_Request*, HTTP_Response*) = 0;
 };
 
-// The HTTP server
+// The HTTP server. This class holds a list of HTTP_Handlers. To
+// handle a request, the server passes the request to each handler in
+// succession. If the request is handled by the handler, the response
+// is immediatly sent back the the client.
 class HTTP_Server {
   TCPIP connection;
  public:
   char socket[5] = "80";
   vector<HTTP_Handler*> handlers;
-
   bool TryGetRequest(HTTP_Request&);
   void Run();
 };
 
+// Simple function to report errors
 void error(const char *);
 
 #endif

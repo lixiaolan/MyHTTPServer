@@ -3,8 +3,9 @@
 
 #include "HTTP_Server.hpp"
 
-// Handler to return a file in the servers local running
-// directory.
+// Loose collection of commonly used pre-defined HTTP_Handlers.
+
+// Handler to return a file in the servers local running directory.
 class HTTP_File_Handler : public HTTP_Handler {
   bool Process(HTTP_Request* request, HTTP_Response* response) {
     if (request->method == "GET") {

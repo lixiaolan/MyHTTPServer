@@ -15,32 +15,16 @@ void HTTP_Request::Parse(string request) {
       (state == ParseState::ERROR))
     return;
 
-  // // Strip of content that does not have an end line
-  // size_t lastNewLine = request.find_last_of("\n");
-  // if (lastNewLine == string::npos) {
-  //   bufferString = request;
-  //   return;
-  // }
-
   // Add bufferString to request and store new bufferString
   request = bufferString + request;
   bufferString = "";
-
-  // Before we start, check to see if we have all the content
-  // already. If so, simply append to body, update the state and
-  // return early.
-  // if ((state == ParseState::ON_BODY) &&
-  //     (body.size() + bufferString.size() >= contentLength)) {
-  //   body += bufferString;
-  //   state = ParseState::COMPLETE;
-  //   return;
-  // }
   
   // Parse lines until there are no more or parsing is complete or
   // there is an error
   istringstream iss(request);
   string line;  
-  while ((state != ParseState::COMPLETE) && (state != ParseState::ERROR)) {
+  while ((state != ParseState::COMPLETE) &&
+         (state != ParseState::ERROR)) {
 
     // If we are ON_BODY, get all remaining chars, append to body and
     // return.
@@ -134,7 +118,7 @@ void HTTP_Request::ParseHeaderLine(string line) {
   }
      
   string rhs = line.substr(colonLoc+2); // +2 to remove leading space
-  rhs.erase(rhs.find_last_not_of(" \n\r\t")+1); // Trim of any whitespace garbage
+  rhs.erase(rhs.find_last_not_of(" \n\r\t")+1); // Trim of any white space garbage
 
   if ((lhs == "")||(rhs == "")) {
     state = ParseState::ERROR;
@@ -166,8 +150,6 @@ void error(const char *msg) {
 
 // HTTP Response
 
-// Method to genereate the html response. See
-// http://www.w3.org/Protocols/rfc2616/rfc2616-sec6.html#sec6
 string HTTP_Response::GetString() {
   string response;
   ostringstream oss;
@@ -305,6 +287,7 @@ bool HTTP_Server::TryGetRequest(HTTP_Request& request) {
 }
 
 // HTTP_Server
+
 void HTTP_Server::Run() {
   
   connection.Init(socket);
@@ -317,7 +300,7 @@ void HTTP_Server::Run() {
     connection.Listen();
     if (!TryGetRequest(request)) continue;
     
-    // Loop through aviliable handlers until one of them handles the
+    // Loop through available handlers until one of them handles the
     // request
     for (HTTP_Handler * handler : handlers)
       if (handler->Process(&request, &response)) break;
