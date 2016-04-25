@@ -1,5 +1,6 @@
 #Define the compile command to be used:
 CC=g++ -std=c++11
+
 #Define the flags to be used with the compile statment:
 CFLAGS = -g -Wall
 
