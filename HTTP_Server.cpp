@@ -211,7 +211,7 @@ int TCPIP::Read(const int size, string &result)  {
 
   FD_ZERO(&rfds);
   FD_SET(newsockfd, &rfds);
-  tv.tv_sec = 5;
+  tv.tv_sec = 0.5;
   tv.tv_usec = 0;
 
   retval = select(newsockfd+1, &rfds, NULL, NULL, &tv);
