@@ -7,10 +7,15 @@
 
 // Handler to return a file in the servers local running directory.
 class HTTP_File_Handler : public HTTP_Handler {
+private:
+  string base_dir;
+public:
+  HTTP_File_Handler(string base_dir): base_dir(base_dir) {};
+
   bool Process(HTTP_Request* request, HTTP_Response* response) {
     if (request->method == "GET") {
-    
-      string file = "." + request->URI;
+
+      string file = base_dir + request->URI;
       string line;
       ifstream myfile(file);
 
@@ -23,13 +28,13 @@ class HTTP_File_Handler : public HTTP_Handler {
       else {
         return false;
       }
-      
+
       return true;
     }
-    
+
     if ((request->method == "PUT") || (request->method == "POST")) {
       istringstream iss(request->body);
-      string filePath = "." + request->URI;
+      string filePath = base_dir + request->URI;
       ofstream ofs(filePath);
       string line;
       while (getline(iss,line)) {
@@ -38,14 +43,14 @@ class HTTP_File_Handler : public HTTP_Handler {
 
       // Make sure to have a non-zero response body
       response->body = "success";
-      
+
       // Close the file
       ofs.close();
 
       return true;
     }
 
-    // If method wat not "GET", "PUT" or "POST" don't handle
+    // If method was not "GET", "PUT" or "POST" don't handle
     return false;
   }
 };
@@ -68,5 +73,11 @@ class PrintInfoHandler : public HTTP_Handler {
   }
 };
 
+class HelloWorld : public HTTP_Handler {
+    bool Process(HTTP_Request* request, HTTP_Response* response) {
+        response->body = "Hello World!!!";
+        return true;
+    }
+};
 
 #endif

@@ -173,108 +173,16 @@ string HTTP_Response::GetString() {
     return oss.str();
 }
 
-// TCPIP:
-
-int TCPIP::Init(char* portNUM)  {
-     
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-     
-    if (sockfd < 0) 
-        error("ERROR opening socket");
-     
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    portno = atoi(portNUM);
-     
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portno);
-     
-    if (bind(sockfd, (struct sockaddr *) &serv_addr,
-             sizeof(serv_addr)) < 0) 
-        error("ERROR on binding");
-    return 1;
-}
-
-void TCPIP::Listen()  {
-    listen(sockfd,5);
-    clilen = sizeof(cli_addr);
-    newsockfd = accept(sockfd, 
-                       (struct sockaddr *) &cli_addr, 
-                       &clilen);
-    if (newsockfd < 0) 
-        error("ERROR on accept");  
-}
-
-int TCPIP::Read(const int size, string &result)  {
-    char buffer[size];
-    int readInt = 0;
-    fd_set rfds;
-    struct timeval tv;
-    int retval;
-
-    FD_ZERO(&rfds);
-    FD_SET(newsockfd, &rfds);
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
-
-    retval = select(newsockfd+1, &rfds, NULL, NULL, &tv);
-
-    if (retval == -1) {
-        cout << "retval == -1" << endl;
-    }
-    else if (retval) {
-        readInt = read(newsockfd, buffer, size-1);
-    }
-    else {
-        cout << "Timed out" << endl;
-    }
-
-    buffer[readInt] = '\0';
-    result += buffer;
-  
-    return readInt;
-}    
-
-void TCPIP::Write(char* buffer, int size)  {
-    fd_set wfds;
-    struct timeval tv;
-    int retval;
-
-    FD_ZERO(&wfds);
-    FD_SET(newsockfd, &wfds);
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-
-    retval = select(newsockfd+1, NULL, &wfds, NULL, &tv);
-
-    if (retval == -1) {
-        // Error
-    }
-    else if (retval) {
-        write(newsockfd, buffer, size);
-    }
-    else {
-        // timed out
-    }
-}
-
-void TCPIP::End() {
-    close(newsockfd);
-}
-
-void TCPIP::Close()  {
-    close(sockfd);
-    close(newsockfd);
-}
-
-bool HTTP_Server::TryGetRequest(HTTP_Request& request) {
+bool HTTP_Server::tryGetRequest(HTTP_Request& request) {
   
     const int size = 256;
+    char buf[size];
     string result = "";
     int readInt;
     while(1) {
         result = "";
-        readInt = connection.Read(size, result);
+        readInt = read(0, buf, size);
+        result += buf;
     
         // Handle error case
         if (readInt <= 0) {
@@ -289,32 +197,26 @@ bool HTTP_Server::TryGetRequest(HTTP_Request& request) {
     return true;
 }
 
-// HTTP_Server
+bool HTTP_Server::trySendResponse(HTTP_Response& response) {
+    // Send string back to client and end the connection.
+    cout << response.GetString();
+    return true;
+}
 
+// HTTP_Server
 void HTTP_Server::Run() {
   
-    connection.Init(socket);
-    while (1) {
-        // Create request and response objects
-        HTTP_Request request = HTTP_Request();
-        HTTP_Response response;
+    // Create request and response objects
+    HTTP_Request request = HTTP_Request();
+    HTTP_Response response;
+    if (!tryGetRequest(request)) return;
+    
+    // Loop through available handlers until one of them handles the
+    // request
+    for (HTTP_Handler * handler : handlers)
+        if (handler->Process(&request, &response)) break;
 
-        // Wait for a request the read and parse it
-        connection.Listen();
-        cout << "Heard something!" << endl;
-        if (!TryGetRequest(request)) continue;
+    trySendResponse(response);
     
-        // Loop through available handlers until one of them handles the
-        // request
-        for (HTTP_Handler * handler : handlers)
-            if (handler->Process(&request, &response)) break;
-    
-        // Send string back to client and end the connection.
-        string responseStr = response.GetString();
-        connection.Write(const_cast<char *>(responseStr.c_str()), responseStr.length());
-        connection.End();
-    }
-    
-    connection.Close();
     return;
 }
